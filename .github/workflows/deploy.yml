@@ -1,26 +1,42 @@
-name: Deploy index.html to EC2
+name: Deploy to EC2 via S3
 
 on:
   push:
     branches:
-      - main  # 메인 브랜치에 푸시될 때 실행
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. 소스 코드 가져오기
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Copy index.html to EC2
-        uses: appleboy/scp-action@master
+      # 2. AWS 인증 설정 (Secrets에 등록한 키 사용)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2 # 본인의 리전 확인 (서울은 ap-northeast-2)
+
+      # 3. S3에 index.html 업로드
+      - name: Upload index.html to S3
+        run: |
+          # 'your-bucket-name'을 실제 생성하신 S3 버킷 이름으로 꼭 바꿔주세요!
+          aws s3 cp index.html s3://my-first-server-bucket-djk/deploy/
+
+      # 4. EC2에 접속해서 S3로부터 파일 동기화하기
+      - name: SSH Remote Commands
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "index.html"  # 전송할 파일
-          target: "/var/www/html"  # Nginx 기본 경로
-          strip_components: 0 # 경로 유지 여부
-
-
+          key: ${{ secrets.SSH_PRIVATE_KEY }} # 기존에 사용하시던 키 이름 그대로 사용
+          script: 
+            # EC2가 S3에서 파일을 내려받도록 명령 (Role 설정이 되어있어야 해요!)
+            sudo aws s3 cp s3://my-first-server-bucket-djk/deploy/index.html /var/www/html/index.html
+            # 권한 정리 (필요한 경우)
+            sudo chown www-data:www-data /var/www/html/index.html
