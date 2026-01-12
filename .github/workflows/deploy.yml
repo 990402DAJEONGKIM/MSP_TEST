@@ -36,4 +36,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             sudo aws s3 cp s3://my-first-server-bucket-djk/deploy/index.html /var/www/html/index.html
-            sudo chown www-data:www-data /var/www/html/index.html
+            sudo chown ec2-user:ec2-user /var/www/html/index.html
